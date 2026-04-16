@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<meta name="description" content="Backpack — Personal Project File Manager with HTML Preview, Auto-Organize, ZIP Export"/>
+<meta name="theme-color" content="#2d6a4f"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+<meta name="apple-mobile-web-app-title" content="Backpack"/>
+<title>Backpack — Project File Manager</title>
+
+<!-- JSZip: ZIP export support (requires internet on first load, then cached) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" crossorigin="anonymous" defer></script>
+
+<!-- App Stylesheet -->
+<link rel="stylesheet" href="backpack.css"/>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════
+     AUTH SCREEN
+     ════════════════════════════════════════════ -->
+<div id="auth-screen">
+  <div class="auth-wrap">
+    <div class="auth-brand">
+      <div class="bico">🎒</div>
+      <div><h1>Backpack</h1><p>Project File Manager</p></div>
+    </div>
+
+    <!-- Login -->
+    <div id="pnl-login">
+      <div class="auth-title">Sign In</div>
+      <div class="auth-sub">Access your personal backpack</div>
+      <div class="auth-err" id="login-err"></div>
+      <div class="fld">
+        <label>Username</label>
+        <input type="text" id="l-u" placeholder="Your username" autocomplete="username"/>
+      </div>
+      <div class="fld">
+        <label>Password</label>
+        <input type="password" id="l-p" placeholder="Your password" autocomplete="current-password"/>
+      </div>
+      <button class="btn btn-g btn-full" id="btn-login">🎒 Open My Backpack</button>
+      <p class="auth-sw">No account? <a id="lnk-reg">Register here</a></p>
+    </div>
+
+    <!-- Register -->
+    <div id="pnl-reg" style="display:none">
+      <div class="auth-title">Create Account</div>
+      <div class="auth-sub">Start your project backpack</div>
+      <div class="auth-err" id="reg-err"></div>
+      <div class="fld">
+        <label>Username</label>
+        <input type="text" id="r-u" placeholder="3–20 chars: a–z 0–9 _"/>
+      </div>
+      <div class="fld">
+        <label>Display Name <small style="font-weight:400;text-transform:none">(optional)</small></label>
+        <input type="text" id="r-n" placeholder="Your name"/>
+      </div>
+      <div class="fld">
+        <label>Password</label>
+        <input type="password" id="r-p" placeholder="Min 4 characters"/>
+      </div>
+      <div class="fld">
+        <label>Confirm Password</label>
+        <input type="password" id="r-p2" placeholder="Repeat password"/>
+      </div>
+      <button class="btn btn-g btn-full" id="btn-reg">✅ Create Account</button>
+      <p class="auth-sw">Have account? <a id="lnk-login">Sign in</a></p>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     MAIN APP
+     ════════════════════════════════════════════ -->
+<div id="app">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <!-- Mobile sidebar toggle -->
+    <button class="bico-btn" id="sb-tog" aria-label="Menu">☰</button>
+
+    <!-- Brand -->
+    <div class="tb-brand">
+      <div class="bico">🎒</div>
+      <span>Backpack</span>
+    </div>
+
+    <!-- Search (desktop) -->
+    <div class="tb-search">
+      <span class="si">🔍</span>
+      <input type="text" id="srch-inp" placeholder="Search files &amp; folders…" autocomplete="off"/>
+    </div>
+
+    <div class="tb-space"></div>
+
+    <!-- Actions -->
+    <div class="tb-acts">
+      <!-- Mobile search toggle -->
+      <button class="bico-btn" id="btn-search-mobile" aria-label="Search">🔍</button>
+
+      <button class="btn btn-out btn-sm" id="btn-about">ℹ</button>
+      <button class="btn btn-pu  btn-sm" id="btn-autoorg" title="Smart auto-organize">🗂</button>
+      <button class="btn btn-out btn-sm" id="btn-nf">📁</button>
+
+      <label class="btn btn-g btn-sm" style="cursor:pointer" title="Upload files">
+        ⬆
+        <input type="file" id="fi-top" multiple style="display:none"/>
+      </label>
+      <label class="btn btn-out btn-sm" style="cursor:pointer" title="Upload folder">
+        📂
+        <input type="file" id="fi-dir" multiple webkitdirectory style="display:none"/>
+      </label>
+
+      <div class="user-pill" id="btn-user">
+        <div class="av" id="tb-av"></div>
+        <span class="un" id="tb-un"></span>
+      </div>
+    </div>
+  </div><!-- /topbar -->
+
+  <div class="app-body">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar" id="sidebar">
+      <div class="sb-sec">Navigation</div>
+      <button class="sb-it active" data-nav="all">
+        <span class="ico">🎒</span>All Files
+        <span class="sb-badge" id="cnt-all">0</span>
+      </button>
+      <button class="sb-it" data-nav="projects">
+        <span class="ico">🚀</span>Projects
+        <span class="sb-badge" id="cnt-proj">0</span>
+      </button>
+
+      <div class="sb-sec" style="display:flex;align-items:center;justify-content:space-between;padding-right:4px">
+        <span>Folders</span>
+        <button class="bico-btn" id="sb-nf-btn" style="font-size:13px;padding:2px 5px" title="New folder">＋</button>
+      </div>
+      <div id="sb-folders"></div>
+
+      <div class="sb-sec">Categories</div>
+      <button class="sb-it" data-nav="cat:images">
+        <span class="ico">🖼️</span>Images
+        <span class="sb-badge" id="cnt-images">0</span>
+      </button>
+      <button class="sb-it" data-nav="cat:videos">
+        <span class="ico">🎬</span>Videos
+        <span class="sb-badge" id="cnt-videos">0</span>
+      </button>
+      <button class="sb-it" data-nav="cat:audio">
+        <span class="ico">🎵</span>Audio
+        <span class="sb-badge" id="cnt-audio">0</span>
+      </button>
+      <button class="sb-it" data-nav="cat:documents">
+        <span class="ico">📄</span>Documents
+        <span class="sb-badge" id="cnt-documents">0</span>
+      </button>
+      <button class="sb-it" data-nav="cat:archives">
+        <span class="ico">📦</span>Archives
+        <span class="sb-badge" id="cnt-archives">0</span>
+      </button>
+      <button class="sb-it" data-nav="cat:code">
+        <span class="ico">💻</span>Code
+        <span class="sb-badge" id="cnt-code">0</span>
+      </button>
+      <button class="sb-it" data-nav="cat:others">
+        <span class="ico">📁</span>Others
+        <span class="sb-badge" id="cnt-others">0</span>
+      </button>
+
+      <hr class="sb-div" style="margin-top:auto"/>
+      <button class="sb-it" id="btn-logout" style="color:var(--rd)">
+        <span class="ico">🚪</span>Sign Out
+      </button>
+    </div>
+    <div class="sb-back" id="sb-back"></div>
+
+    <!-- MAIN CONTENT -->
+    <div class="main">
+
+      <!-- Page header -->
+      <div class="ph">
+        <div class="ph-l">
+          <h2 id="pg-title">All Files</h2>
+          <p id="pg-sub"></p>
+        </div>
+        <div class="ph-r">
+          <button class="btn btn-out btn-sm" id="ph-nf-btn">📁 New Folder</button>
+          <label class="btn btn-g btn-sm" style="cursor:pointer">
+            ⬆ Upload Files
+            <input type="file" id="fi-main" multiple style="display:none"/>
+          </label>
+          <label class="btn btn-out btn-sm" style="cursor:pointer">
+            📂 Upload Folder
+            <input type="file" id="fi-main-dir" multiple webkitdirectory style="display:none"/>
+          </label>
+        </div>
+      </div>
+
+      <!-- Breadcrumb -->
+      <div class="bc" id="breadcrumb"></div>
+
+      <!-- Storage bar -->
+      <div class="stor">
+        <span class="sl">💾 Storage</span>
+        <div class="st"><div class="sf" id="sf" style="width:0%"></div></div>
+        <span class="si" id="si-txt">0 B</span>
+      </div>
+
+      <!-- Drop zone -->
+      <div class="dz" id="dz">
+        <div class="di">📂</div>
+        <div class="dt">Drop files or folders here, or click to browse</div>
+        <div class="ds">All file types · Images · Videos · Audio · Docs · Code · Archives</div>
+        <div class="dz-pills">
+          <span class="dz-pill">Multi-select ✓</span>
+          <span class="dz-pill">Whole Folders ✓</span>
+          <span class="dz-pill">Any file type ✓</span>
+          <span class="dz-pill">Auto-categorize ✓</span>
+        </div>
+      </div>
+
+      <!-- Upload queue -->
+      <div id="uq"></div>
+
+      <!-- Project cards -->
+      <div id="pj-cards"></div>
+
+      <!-- Category stats -->
+      <div class="cg" id="cat-grid" style="display:none"></div>
+
+      <!-- Toolbar -->
+      <div class="tb" id="toolbar" style="display:none">
+        <div class="vbs">
+          <button class="vb active" id="vb-g" title="Grid view">⊞</button>
+          <button class="vb"        id="vb-l" title="List view">☰</button>
+        </div>
+        <select class="srt" id="srt-sel">
+          <option value="date-desc">Newest First</option>
+          <option value="date-asc">Oldest First</option>
+          <option value="name-asc">Name A–Z</option>
+          <option value="name-desc">Name Z–A</option>
+          <option value="size-desc">Largest First</option>
+          <option value="size-asc">Smallest First</option>
+        </select>
+        <span class="tb-cnt" id="tb-cnt"></span>
+        <div class="tb-r">
+          <button class="btn btn-out btn-sm" id="sel-tog">☑ Select</button>
+          <button class="btn btn-b   btn-sm" id="zip-btn"     style="display:none">📦 Export ZIP</button>
+          <button class="btn btn-rd  btn-sm" id="del-all-btn" style="display:none">🗑 Delete All</button>
+        </div>
+      </div>
+
+      <!-- Files area -->
+      <div id="files-area" class="fg"></div>
+
+    </div><!-- /main -->
+  </div><!-- /app-body -->
+</div><!-- /app -->
+
+<!-- ════════════════════════════════════════════
+     MODALS
+     ════════════════════════════════════════════ -->
+
+<!-- File Preview -->
+<div class="ov" id="m-prev">
+  <div class="modal lg">
+    <div class="mh">
+      <h3 id="prev-ttl">Preview</h3>
+      <button class="bico-btn" data-close="m-prev">✕</button>
+    </div>
+    <div class="mb" id="prev-body"></div>
+    <div class="mf">
+      <button class="btn btn-out btn-sm" id="prev-move-btn">✂️ Move</button>
+      <button class="btn btn-out btn-sm" id="prev-copy-btn">📋 Copy</button>
+      <button class="btn btn-b   btn-sm" id="prev-dl-btn">⬇ Download</button>
+      <button class="btn btn-rd  btn-sm" id="prev-del-btn">🗑 Delete</button>
+      <button class="btn btn-g   btn-sm" data-close="m-prev">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- HTML Live Preview -->
+<div class="ov" id="m-html">
+  <div class="modal xl">
+    <div class="mh">
+      <h3 id="html-ttl">🌐 HTML Preview</h3>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="btn btn-b btn-sm" id="btn-open-browser">🌐 Open in Browser</button>
+        <button class="bico-btn" data-close="m-html">✕</button>
+      </div>
+    </div>
+    <div class="mb" style="padding:12px">
+      <div class="dev-bar">
+        <span style="font-size:11px;color:var(--tx2);font-weight:700">Preview as:</span>
+        <button class="dev-btn active" id="dev-full">🖥 Full</button>
+        <button class="dev-btn" id="dev-desk">💻 Desktop</button>
+        <button class="dev-btn" id="dev-tab">📱 Tablet</button>
+        <button class="dev-btn" id="dev-mob">📱 Mobile</button>
+        <button class="dev-btn" id="dev-xs">📱 Small</button>
+        <span style="margin-left:auto;font-size:10.5px;color:var(--tx3)" id="dev-sz"></span>
+      </div>
+      <div style="overflow:auto;background:#ccc;padding:6px;border-radius:var(--r);min-height:180px" id="iframe-wrap">
+        <iframe id="hpf" sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups"></iframe>
+      </div>
+    </div>
+    <div class="mf">
+      <button class="btn btn-b btn-sm" id="btn-proj-zip">📦 Export Project ZIP</button>
+      <button class="btn btn-g btn-sm" data-close="m-html">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- New Folder -->
+<div class="ov" id="m-nf">
+  <div class="modal sm">
+    <div class="mh">
+      <h3>📁 New Folder</h3>
+      <button class="bico-btn" data-close="m-nf">✕</button>
+    </div>
+    <div class="mb">
+      <p style="font-size:12px;color:var(--tx2);margin-bottom:11px">
+        Create inside: <strong id="nf-parent-lbl">Root</strong>
+      </p>
+      <div class="fld">
+        <label>Folder Name</label>
+        <input type="text" id="nf-inp" placeholder="e.g. my-project"/>
+      </div>
+    </div>
+    <div class="mf">
+      <button class="btn btn-out btn-sm" data-close="m-nf">Cancel</button>
+      <button class="btn btn-g   btn-sm" id="nf-ok-btn">📁 Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- Folder Suggest -->
+<div class="ov" id="m-suggest">
+  <div class="modal">
+    <div class="mh">
+      <h3>📂 Where to save?</h3>
+      <button class="bico-btn" data-close="m-suggest">✕</button>
+    </div>
+    <div class="mb">
+      <p style="font-size:12px;color:var(--tx2);margin-bottom:13px">
+        Backpack suggests these locations based on file types:
+      </p>
+      <div id="suggest-list"></div>
+      <hr style="border:none;border-top:1px solid var(--bdr);margin:13px 0"/>
+      <p style="font-size:11.5px;color:var(--tx3);margin-bottom:7px">Or create a new folder:</p>
+      <div class="nfrow">
+        <input type="text" id="sug-custom-inp" placeholder="New folder name…"/>
+        <button class="btn btn-g btn-sm" id="sug-custom-btn">✅ Use This</button>
+      </div>
+      <button class="btn btn-out btn-sm" id="sug-root-btn" style="margin-top:8px;width:100%">
+        📥 Save to Root (no folder)
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Folder Picker (copy/move destination) -->
+<div class="ov" id="m-fp">
+  <div class="modal">
+    <div class="mh">
+      <h3 id="fp-ttl">📋 Choose Destination</h3>
+      <button class="bico-btn" data-close="m-fp">✕</button>
+    </div>
+    <div class="mb">
+      <p style="font-size:12px;color:var(--tx2);margin-bottom:9px">
+        Item: <strong id="fp-item-name"></strong>
+      </p>
+      <div class="dest-bar" id="fp-dest-bar">/ (Root)</div>
+      <div class="fpl" id="fp-list"></div>
+      <div class="nfrow" style="margin-top:9px">
+        <input type="text" id="fp-nf-inp" placeholder="Create new subfolder…"/>
+        <button class="btn btn-out btn-sm" id="fp-nf-btn">+ New</button>
+      </div>
+    </div>
+    <div class="mf">
+      <button class="btn btn-out btn-sm" data-close="m-fp">Cancel</button>
+      <button class="btn btn-g   btn-sm" id="fp-ok-btn">✅ Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- Rename -->
+<div class="ov" id="m-rename">
+  <div class="modal sm">
+    <div class="mh">
+      <h3>✏️ Rename</h3>
+      <button class="bico-btn" data-close="m-rename">✕</button>
+    </div>
+    <div class="mb">
+      <div class="fld">
+        <label>New Name</label>
+        <input type="text" id="rename-inp"/>
+      </div>
+    </div>
+    <div class="mf">
+      <button class="btn btn-out btn-sm" data-close="m-rename">Cancel</button>
+      <button class="btn btn-g   btn-sm" id="rename-ok-btn">✅ Rename</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Delete -->
+<div class="ov" id="m-confirm">
+  <div class="modal sm">
+    <div class="mh">
+      <h3 id="conf-ttl">Confirm</h3>
+      <button class="bico-btn" data-close="m-confirm">✕</button>
+    </div>
+    <div class="mb">
+      <p id="conf-msg" style="font-size:13px;color:var(--tx2);line-height:1.55"></p>
+    </div>
+    <div class="mf">
+      <button class="btn btn-out btn-sm" data-close="m-confirm">Cancel</button>
+      <button class="btn btn-rd  btn-sm" id="conf-ok-btn">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- ZIP Progress -->
+<div class="ov" id="m-zip">
+  <div class="modal sm">
+    <div class="mh"><h3 id="zip-ttl">📦 Creating ZIP…</h3></div>
+    <div class="mb">
+      <div class="prog-out"><div class="prog-in" id="zip-bar" style="width:0%"></div></div>
+      <p class="prog-lbl" id="zip-lbl">Preparing…</p>
+    </div>
+  </div>
+</div>
+
+<!-- User / Account -->
+<div class="ov" id="m-user">
+  <div class="modal sm">
+    <div class="mh">
+      <h3>👤 Account</h3>
+      <button class="bico-btn" data-close="m-user">✕</button>
+    </div>
+    <div class="mb" id="user-body"></div>
+    <div class="mf">
+      <button class="btn btn-rd btn-sm" id="logout-btn2">🚪 Sign Out</button>
+      <button class="btn btn-g  btn-sm" data-close="m-user">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- About -->
+<div class="ov" id="m-about">
+  <div class="modal sm">
+    <div class="mh">
+      <h3>ℹ About Backpack</h3>
+      <button class="bico-btn" data-close="m-about">✕</button>
+    </div>
+    <div class="mb" style="text-align:center;padding:22px 20px 16px">
+      <div style="width:62px;height:62px;background:var(--g);border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:30px;margin:0 auto 14px">🎒</div>
+      <div style="font-size:20px;font-weight:900;letter-spacing:-.4px;margin-bottom:3px">Backpack</div>
+      <div style="font-size:11px;color:var(--tx3);margin-bottom:18px;letter-spacing:.3px">Project File Manager &amp; HTML Preview System</div>
+
+      <div class="about-dev">
+        <div style="font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:var(--tx3);margin-bottom:11px">Developer</div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--g),var(--b));color:#fff;font-size:18px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0">T</div>
+          <div style="text-align:left">
+            <div style="font-size:14px;font-weight:800">Tukaram Hankare</div>
+            <div style="font-size:11.5px;color:var(--tx2);margin-top:1px">Farmer · Coder · Web Developer</div>
+            <div style="font-size:11px;color:var(--tx3);margin-top:1px">Student, Solapur University, Solapur</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;text-align:left">
+        <div style="background:var(--g-lt);border:1px solid #b8dcc8;border-radius:var(--rs);padding:10px 12px">
+          <div style="font-size:9.5px;font-weight:800;text-transform:uppercase;color:var(--g-dk);margin-bottom:3px">Version</div>
+          <div style="font-size:14px;font-weight:800;color:var(--g-dk)">v3.0</div>
+        </div>
+        <div style="background:var(--b-lt);border:1px solid #a8ccee;border-radius:var(--rs);padding:10px 12px">
+          <div style="font-size:9.5px;font-weight:800;text-transform:uppercase;color:var(--b);margin-bottom:3px">Year</div>
+          <div style="font-size:14px;font-weight:800;color:var(--b)">2026</div>
+        </div>
+      </div>
+
+      <div style="font-size:11px;color:var(--tx3);line-height:1.6;margin-bottom:16px;background:var(--surf2);border-radius:var(--rs);padding:10px">
+        Upload, organize &amp; preview your web projects in a browser.<br/>
+        Folders · Multi-select · ZIP export · Live HTML preview.
+      </div>
+
+      <div style="border-top:1px solid var(--bdr);padding-top:12px;font-size:11.5px;color:var(--tx3)">
+        &copy; 2026 <strong style="color:var(--tx2)">Tukaram Hankare</strong>. All rights reserved.<br/>
+        <span style="font-size:10.5px">Solapur University · Maharashtra, India</span>
+      </div>
+    </div>
+    <div class="mf" style="justify-content:center">
+      <button class="btn btn-g btn-sm" data-close="m-about">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Auto-Organize Plan -->
+<div class="ov" id="m-autoorg">
+  <div class="modal lg">
+    <div class="mh">
+      <div>
+        <h3 id="ao-title">🗂 Smart Auto-Organize</h3>
+        <div style="font-size:11px;color:var(--tx3);margin-top:2px" id="ao-subtitle"></div>
+      </div>
+      <button class="bico-btn" data-close="m-autoorg">✕</button>
+    </div>
+    <div class="mb" id="ao-body"></div>
+    <div class="mf">
+      <button class="btn btn-out btn-sm" data-close="m-autoorg">Cancel</button>
+      <button class="btn btn-b   btn-sm" id="ao-preview-btn">👁 Preview Plan</button>
+      <button class="btn btn-g   btn-sm" id="ao-apply-btn">⚡ Apply &amp; Organize</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     CONTEXT MENU
+     ════════════════════════════════════════════ -->
+<div class="ctx" id="ctx">
+  <div class="ctx-row acc" id="ctx-open">👁 Open / Preview</div>
+  <div class="ctx-row" id="ctx-run" style="display:none">🌐 Run as HTML</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-row" id="ctx-dl">⬇ Download</div>
+  <div class="ctx-row" id="ctx-zip">📦 Export ZIP</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-row" id="ctx-copy">📋 Copy to…</div>
+  <div class="ctx-row" id="ctx-move">✂️ Move to…</div>
+  <div class="ctx-row" id="ctx-rename">✏️ Rename</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-row rd" id="ctx-del">🗑 Delete</div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     SELECTION BAR
+     ════════════════════════════════════════════ -->
+<div id="selbar">
+  <span id="sel-cnt">0 selected</span>
+  <div class="sep"></div>
+  <button class="sb-btn" id="selbar-dl">⬇ Download</button>
+  <button class="sb-btn" id="selbar-zip">📦 ZIP</button>
+  <button class="sb-btn" id="selbar-move">✂️ Move</button>
+  <button class="sb-btn" id="selbar-copy">📋 Copy</button>
+  <div class="sep"></div>
+  <button class="sb-btn" id="selbar-del" style="color:#ff8080">🗑 Del</button>
+  <div class="sep"></div>
+  <button class="sb-btn" id="selbar-close">✕</button>
+</div>
+
+<!-- Toast container -->
+<div id="toast-wrap"></div>
+
+<!-- ════════════════════════════════════════════
+     APP SCRIPT
+     ════════════════════════════════════════════ -->
+<script src="backpack.js"></script>
+</body>
+</html>
